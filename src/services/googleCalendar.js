@@ -1,19 +1,10 @@
 import { google } from "googleapis";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-dotenv.config();
 
 const calendar = google.calendar("v3");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const keyPath = path.join(__dirname, "../../service-account.json");
-let credentials;
-if (process.env.NODE_ENV === "production") {
-  credentials = JSON.parse(process.env.SERVICE_ACCOUNT_JSON);
-} else {
-  const keyPath = path.join(__dirname, "../service-account.json");
-  credentials = keyPath;
-}
 const auth = new google.auth.GoogleAuth({
   keyFile: keyPath,
   scopes: ["https://www.googleapis.com/auth/calendar"],
