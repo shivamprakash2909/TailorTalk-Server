@@ -1,18 +1,18 @@
 # 🧠 TailorTalk - Backend Server
 
-This is the **backend server** for [TailorTalk](https://tailortalk-frontend-live-link.com), an AI-powered assistant that helps users schedule meetings through natural language conversations.
+This is the **backend server** for [TailorTalk](https://tailortalk-server.onrender.com), an AI-powered assistant that helps users schedule meetings through natural language conversations.
 
 It integrates:
 
-- 🧠 LLMs like **Gemini** or **Gemma**
+- 🧠 LLMs like **Gemini**
 - 📅 **Google Calendar API** for event booking
-- 🌐 A frontend built in React → [Frontend Repo](https://github.com/yourusername/tailortalk-frontend)
+- 🌐 A frontend built in React → [Frontend Repo](https://github.com/shivamprakash2909/tailortalk)
 
 ---
 
 ## 🚀 Features
 
-- 🧠 Gemini/Gemma-based conversational AI endpoints
+- 🧠 Gemini based conversational AI endpoints
 - 📅 Google Calendar event creation using service accounts
 - 📥 Natural language extraction to structured event data
 - ⚙️ Express.js backend, easily extendable
@@ -46,6 +46,6 @@ It integrates:
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/yourusername/tailortalk-backend.git
+git clone https://github.com/shivamprakash2909/TailorTalk-Server.git
 cd tailortalk-backend
 ```
