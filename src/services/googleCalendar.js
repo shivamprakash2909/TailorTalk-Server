@@ -40,5 +40,5 @@ async function bookEvent(summary, startTime, endTime) {
     throw new Error("Failed to create event: " + (err.response?.data?.error?.message || err.message));
   }
 }
-
+export { auth, calendar };
 export default bookEvent;

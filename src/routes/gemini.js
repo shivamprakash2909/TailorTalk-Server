@@ -1,16 +1,21 @@
-// backend/routes/gemini.js
-
 import express from "express";
 import axios from "axios";
+import { google } from "googleapis";
+import dayjs from "dayjs";
+import calendarAuth from "../services/googleCalendar.js";
 
 const router = express.Router();
+const calendar = google.calendar("v3");
 
+// POST /api/gemini/chat
 router.post("/chat", async (req, res) => {
   const { message } = req.body;
 
   const prompt = `
 You are TailorTalk, a smart and friendly AI assistant.
-You can chat with the users in a friendly way and help them with their queries.
+You help users schedule meetings or check their calendar availability.
+If the user asks for a schedule or free slots on a specific day, respond clearly with the date in YYYY-MM-DD format so the backend can act on it.
+Otherwise, chat casually or assist with tasks.
 
 User: ${message}
 `;
@@ -22,9 +27,7 @@ User: ${message}
         contents: [{ parts: [{ text: prompt }] }],
       },
       {
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       }
     );
 
@@ -44,24 +47,35 @@ User: ${message}
     });
   }
 });
+
+// POST /api/gemini/extract
 router.post("/extract", async (req, res) => {
   const { message } = req.body;
 
   const prompt = `
 You are an intelligent calendar assistant.
 
-Your task is to extract event details from the user's message. If summary, date, start-time, end-time are present, return ONLY the following JSON:
+Your job is to extract either:
+1. A meeting booking → return:
 {
   "summary": "...",
-  "start": "...",  // ISO 8601 format (e.g., 2024-07-04T15:00:00)
-  "end": "..."
+  "start": "YYYY-MM-DDTHH:mm:ss",
+  "end": "YYYY-MM-DDTHH:mm:ss"
 }
-If the message contain the details of a meeting, then directly book the meeting without asking the user for confirmation.
-If any required field is missing:
-- DO NOT return JSON
-- Instead, ask the user a clear question to collect what's missing (e.g., "What time should the meeting start?")
 
-Message: "${message}"
+2. A schedule request → return:
+{
+  "dateQuery": "YYYY-MM-DD"
+}
+
+❗IMPORTANT:
+- If all required information is present, return the JSON immediately without any follow-up question.
+- DO NOT ask the user for confirmation.
+- DO NOT include any explanation or context — just return the valid JSON.
+
+If the message is incomplete or lacks recognizable information, DO NOT return JSON. Just explain what’s missing in plain text.
+
+User: "${message}"
 `;
 
   try {
@@ -82,14 +96,50 @@ Message: "${message}"
     const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
 
     if (parsed?.summary && parsed?.start && parsed?.end) {
-      res.json({ success: true, ...parsed });
+      return res.json({ success: true, type: "booking", ...parsed });
     }
+
+    if (parsed?.dateQuery) {
+      return res.json({ success: true, type: "dateQuery", date: parsed.dateQuery });
+    }
+
+    res.json({ success: false, reply: rawText });
   } catch (err) {
     console.error("❌ Gemini Extract Error:", err?.response?.data || err.message);
-    res.status(500).json({
-      success: false,
-      error: "Gemini API error",
+    res.status(500).json({ success: false, error: "Gemini API error" });
+  }
+});
+
+// POST /api/gemini/schedule
+router.post("/schedule", async (req, res) => {
+  const { date } = req.body;
+
+  if (!date) return res.status(400).json({ success: false, error: "Missing 'date'" });
+
+  try {
+    const authClient = await calendarAuth.getClient();
+    const timeMin = dayjs(date).startOf("day").toISOString();
+    const timeMax = dayjs(date).endOf("day").toISOString();
+
+    const result = await calendar.events.list({
+      auth: authClient,
+      calendarId: process.env.CALENDAR_ID,
+      timeMin,
+      timeMax,
+      singleEvents: true,
+      orderBy: "startTime",
     });
+
+    const events = result.data.items.map((event) => ({
+      summary: event.summary,
+      start: event.start.dateTime,
+      end: event.end.dateTime,
+    }));
+
+    res.json({ success: true, schedule: events });
+  } catch (err) {
+    console.error("❌ Schedule Fetch Error:", err?.response?.data || err.message);
+    res.status(500).json({ success: false, error: "Failed to fetch schedule" });
   }
 });
 
